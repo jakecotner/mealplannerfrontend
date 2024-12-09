@@ -7,7 +7,17 @@ function Inventory() {
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState(null);
   const [updatedQuantity, setUpdatedQuantity] = useState(0);
-  const [newItem, setNewItem] = useState({ ingredient_id: "", quantity: 0, unit: "" });
+  const [newItem, setNewItem] = useState({
+    ingredient_id: "",
+    quantity: 0,
+    unit: "",
+    preferred_store: "",
+    link_to_purchase: "",
+    expiry_date: "",
+    location: "",
+    quantity_threshold: 0,
+    notes: "",
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,12 +74,71 @@ function Inventory() {
   const addItem = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post("http://127.0.0.1:8000/inventory/1", newItem); // Replace "1" with the user ID
-      const addedItem = response.data;
-      setInventory([...inventory, { ...addedItem, ingredient_name: ingredients.find(ing => ing.id === newItem.ingredient_id)?.name }]);
-      setNewItem({ ingredient_id: "", quantity: 0, unit: "" });
+      const existingItem = inventory.find(
+        (item) => parseInt(item.ingredient_id, 10) === parseInt(newItem.ingredient_id, 10)
+      );
+
+      if (existingItem) {
+        // Update quantity if item exists
+        const updatedQuantity = parseFloat(existingItem.quantity) + parseFloat(newItem.quantity);
+        const response = await axios.put(
+          `http://127.0.0.1:8000/inventory/1/${existingItem.ingredient_id}`,
+          {
+            ingredient_id: existingItem.ingredient_id,
+            quantity: updatedQuantity,
+            unit: existingItem.unit,
+          }
+        );
+        setInventory(
+          inventory.map((item) =>
+            item.ingredient_id === existingItem.ingredient_id ? response.data : item
+          )
+        );
+      } else {
+        // Add new item if it doesn't exist
+        const payload = {
+          user_id: 1, // Replace with the actual user ID
+          ingredient_id: parseInt(newItem.ingredient_id, 10), // Ensure ingredient_id is passed correctly
+          quantity: parseFloat(newItem.quantity), // Ensure quantity is a float
+          unit: newItem.unit, // Unit as a string
+          preferred_store: newItem.preferred_store || null, // Optional fields set to null if empty
+          link_to_purchase: newItem.link_to_purchase || null,
+          expiry_date: newItem.expiry_date || null,
+          location: newItem.location || null,
+          quantity_threshold: parseFloat(newItem.quantity_threshold) || null, // Optional float
+          notes: newItem.notes || null, // Optional string
+        };
+
+        console.log("Payload being sent to backend:", payload);
+
+        const response = await axios.post("http://127.0.0.1:8000/inventory/1", payload);
+        const addedItem = response.data;
+
+        setInventory([
+          ...inventory,
+          {
+            ...addedItem,
+            ingredient_name: ingredients.find(
+              (ing) => parseInt(ing.ingredient_id, 10) === parseInt(newItem.ingredient_id, 10)
+            )?.name,
+          },
+        ]);
+      }
+
+      // Reset the form
+      setNewItem({
+        ingredient_id: "",
+        quantity: 0,
+        unit: "",
+        preferred_store: "",
+        link_to_purchase: "",
+        expiry_date: "",
+        location: "",
+        quantity_threshold: 0,
+        notes: "",
+      });
     } catch (error) {
-      console.error("Error adding item:", error);
+      console.error("Error adding item:", error.response?.data || error.message);
     }
   };
 
@@ -90,7 +159,7 @@ function Inventory() {
             Select Ingredient
           </option>
           {ingredients.map((ingredient) => (
-            <option key={ingredient.id} value={ingredient.id}>
+            <option key={ingredient.ingredient_id} value={ingredient.ingredient_id}>
               {ingredient.name}
             </option>
           ))}
@@ -108,6 +177,41 @@ function Inventory() {
           value={newItem.unit}
           onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
           required
+        />
+        <input
+          type="text"
+          placeholder="Preferred Store"
+          value={newItem.preferred_store}
+          onChange={(e) => setNewItem({ ...newItem, preferred_store: e.target.value })}
+        />
+        <input
+          type="url"
+          placeholder="Link to Purchase"
+          value={newItem.link_to_purchase}
+          onChange={(e) => setNewItem({ ...newItem, link_to_purchase: e.target.value })}
+        />
+        <input
+          type="date"
+          placeholder="Expiry Date"
+          value={newItem.expiry_date}
+          onChange={(e) => setNewItem({ ...newItem, expiry_date: e.target.value })}
+        />
+        <input
+          type="text"
+          placeholder="Location"
+          value={newItem.location}
+          onChange={(e) => setNewItem({ ...newItem, location: e.target.value })}
+        />
+        <input
+          type="number"
+          placeholder="Quantity Threshold"
+          value={newItem.quantity_threshold}
+          onChange={(e) => setNewItem({ ...newItem, quantity_threshold: parseFloat(e.target.value) })}
+        />
+        <textarea
+          placeholder="Notes"
+          value={newItem.notes}
+          onChange={(e) => setNewItem({ ...newItem, notes: e.target.value })}
         />
         <button type="submit">Add Item</button>
       </form>
