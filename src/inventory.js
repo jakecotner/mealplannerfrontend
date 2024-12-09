@@ -96,11 +96,15 @@ function Inventory() {
         );
       } else {
         // Add new item if it doesn't exist
+        const selectedIngredient = ingredients.find(
+          (ing) => parseInt(ing.ingredient_id, 10) === parseInt(newItem.ingredient_id, 10)
+        );
+
         const payload = {
           user_id: 1, // Replace with the actual user ID
           ingredient_id: parseInt(newItem.ingredient_id, 10), // Ensure ingredient_id is passed correctly
           quantity: parseFloat(newItem.quantity), // Ensure quantity is a float
-          unit: newItem.unit, // Unit as a string
+          unit: newItem.unit || selectedIngredient?.preferred_unit || "", // Autopopulate unit
           preferred_store: newItem.preferred_store || null, // Optional fields set to null if empty
           link_to_purchase: newItem.link_to_purchase || null,
           expiry_date: newItem.expiry_date || null,
@@ -118,9 +122,7 @@ function Inventory() {
           ...inventory,
           {
             ...addedItem,
-            ingredient_name: ingredients.find(
-              (ing) => parseInt(ing.ingredient_id, 10) === parseInt(newItem.ingredient_id, 10)
-            )?.name,
+            ingredient_name: selectedIngredient?.name,
           },
         ]);
       }
@@ -152,7 +154,17 @@ function Inventory() {
       <form onSubmit={addItem}>
         <select
           value={newItem.ingredient_id}
-          onChange={(e) => setNewItem({ ...newItem, ingredient_id: e.target.value })}
+          onChange={(e) => {
+            const selectedId = e.target.value;
+            const selectedIngredient = ingredients.find(
+              (ing) => parseInt(ing.ingredient_id, 10) === parseInt(selectedId, 10)
+            );
+            setNewItem({
+              ...newItem,
+              ingredient_id: selectedId,
+              unit: selectedIngredient?.preferred_unit || "",
+            });
+          }}
           required
         >
           <option value="" disabled>

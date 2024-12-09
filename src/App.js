@@ -1,14 +1,14 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import Inventory from "./inventory"; // Import Inventory from a separate file
+import Recipe from "./recipes"; // Import Recipe from a separate file
+import { RecipesPage, RecipeDetail } from "./recipes";
+
+
 
 // Placeholder components for other sections
 function Home() {
   return <h1>Home Page</h1>;
-}
-
-function Recipes() {
-  return <h1>Recipes</h1>;
 }
 
 function MealPlans() {
@@ -32,11 +32,16 @@ function App() {
         </ul>
       </nav>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/inventory" element={<Inventory />} />
-        <Route path="/recipes" element={<Recipes />} />
-        <Route path="/meal-plans" element={<MealPlans />} />
-        <Route path="/grocery-lists" element={<GroceryLists />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/recipes" element={<RecipesPage />} />
+          <Route path="/recipes/:recipeId" element={<RecipeDetail />} />
+          <Route path="/meal-plans" element={<MealPlans />} />
+          <Route path="/grocery-lists" element={<GroceryLists />} />
+
+
+
+
       </Routes>
     </Router>
   );
