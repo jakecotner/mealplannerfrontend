@@ -10,7 +10,6 @@ function Inventory() {
   const [newItem, setNewItem] = useState({
     ingredient_id: "",
     quantity: 0,
-    unit: "",
     preferred_store: "",
     link_to_purchase: "",
     expiry_date: "",
@@ -57,7 +56,6 @@ function Inventory() {
         const response = await axios.put(`http://127.0.0.1:8000/inventory/1/${editingItem.ingredient_id}`, {
           ingredient_id: editingItem.ingredient_id,
           quantity: updatedQuantity,
-          unit: editingItem.unit,
         });
         setInventory(
           inventory.map((item) =>
@@ -86,7 +84,6 @@ function Inventory() {
           {
             ingredient_id: existingItem.ingredient_id,
             quantity: updatedQuantity,
-            unit: existingItem.unit,
           }
         );
         setInventory(
@@ -104,7 +101,6 @@ function Inventory() {
           user_id: 1, // Replace with the actual user ID
           ingredient_id: parseInt(newItem.ingredient_id, 10), // Ensure ingredient_id is passed correctly
           quantity: parseFloat(newItem.quantity), // Ensure quantity is a float
-          unit: newItem.unit || selectedIngredient?.preferred_unit || "", // Autopopulate unit
           preferred_store: newItem.preferred_store || null, // Optional fields set to null if empty
           link_to_purchase: newItem.link_to_purchase || null,
           expiry_date: newItem.expiry_date || null,
@@ -123,6 +119,7 @@ function Inventory() {
           {
             ...addedItem,
             ingredient_name: selectedIngredient?.name,
+            unit: selectedIngredient?.unit, // Include the unit from ingredients
           },
         ]);
       }
@@ -131,7 +128,6 @@ function Inventory() {
       setNewItem({
         ingredient_id: "",
         quantity: 0,
-        unit: "",
         preferred_store: "",
         link_to_purchase: "",
         expiry_date: "",
@@ -162,7 +158,7 @@ function Inventory() {
             setNewItem({
               ...newItem,
               ingredient_id: selectedId,
-              unit: selectedIngredient?.preferred_unit || "",
+              unit: selectedIngredient?.unit || "", // Automatically populate unit
             });
           }}
           required
@@ -181,13 +177,6 @@ function Inventory() {
           placeholder="Quantity"
           value={newItem.quantity}
           onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) })}
-          required
-        />
-        <input
-          type="text"
-          placeholder="Unit"
-          value={newItem.unit}
-          onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
           required
         />
         <input
@@ -240,19 +229,8 @@ function Inventory() {
           {inventory.map((item) => (
             <tr key={item.ingredient_id}>
               <td>{item.ingredient_name}</td>
-              <td>
-                {editingItem && editingItem.ingredient_id === item.ingredient_id ? (
-                  <input
-                    type="number"
-                    value={updatedQuantity}
-                    onChange={(e) => setUpdatedQuantity(e.target.value)}
-                    onKeyDown={saveEdit}
-                  />
-                ) : (
-                  item.quantity
-                )}
-              </td>
-              <td>{item.unit}</td>
+              <td>{item.quantity}</td>
+              <td>{item.unit}</td> {/* Display unit from the ingredient table */}
               <td>
                 {editingItem && editingItem.ingredient_id === item.ingredient_id ? (
                   <button onClick={saveEdit}>Save</button>

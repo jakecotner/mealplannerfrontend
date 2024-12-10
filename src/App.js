@@ -1,8 +1,10 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import Inventory from "./inventory"; // Import Inventory from a separate file
-import Recipe from "./recipes"; // Import Recipe from a separate file
-import { RecipesPage, RecipeDetail } from "./recipes";
+import { RecipesPage, RecipeDetail } from "./components/recipes";
+
+import Inventory from "./components/inventory";
+import Recipes from "./components/recipes";
+import MealPlanner from "./components/mealplanner";
 
 
 
@@ -36,7 +38,8 @@ function App() {
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/recipes" element={<RecipesPage />} />
           <Route path="/recipes/:recipeId" element={<RecipeDetail />} />
-          <Route path="/meal-plans" element={<MealPlans />} />
+          <Route path="/meal-plans" element={<MealPlanner />} />
+
           <Route path="/grocery-lists" element={<GroceryLists />} />
 
 

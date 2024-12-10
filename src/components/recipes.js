@@ -39,26 +39,37 @@ function RecipeDetail() {
   const [newIngredient, setNewIngredient] = useState({
     ingredient_id: "",
     quantity: "",
-    unit: "",
     optional: false,
+    preparation_style: "",
   });
   const [availableIngredients, setAvailableIngredients] = useState([]);
 
   useEffect(() => {
     const fetchRecipeDetails = async () => {
       try {
+        const availableIngredientsResponse = await axios.get(
+          "http://127.0.0.1:8000/ingredients"
+        );
+        const fetchedAvailableIngredients = availableIngredientsResponse.data;
+        setAvailableIngredients(fetchedAvailableIngredients);
+
         const recipeResponse = await axios.get(`http://127.0.0.1:8000/recipes/${recipeId}`);
         setRecipe(recipeResponse.data);
 
         const ingredientsResponse = await axios.get(
           `http://127.0.0.1:8000/recipe-ingredients/${recipeId}`
         );
-        setIngredients(ingredientsResponse.data);
-
-        const availableIngredientsResponse = await axios.get(
-          "http://127.0.0.1:8000/ingredients"
-        );
-        setAvailableIngredients(availableIngredientsResponse.data);
+        const fetchedIngredients = ingredientsResponse.data.map((ingredient) => {
+          const matchedIngredient = fetchedAvailableIngredients.find(
+            (ing) => ing.ingredient_id === ingredient.ingredient_id
+          );
+          return {
+            ...ingredient,
+            ingredient_name: matchedIngredient?.name || "Unknown",
+            unit: matchedIngredient?.unit || "Unknown",
+          };
+        });
+        setIngredients(fetchedIngredients);
       } catch (error) {
         console.error("Error fetching recipe details:", error);
       }
@@ -73,14 +84,25 @@ function RecipeDetail() {
         recipe_id: parseInt(recipeId, 10),
         ingredient_id: parseInt(newIngredient.ingredient_id, 10),
         quantity: parseFloat(newIngredient.quantity),
-        unit: newIngredient.unit,
         optional: newIngredient.optional,
+        preparation_style: newIngredient.preparation_style,
       };
 
       await axios.post("http://127.0.0.1:8000/recipe-ingredients/", payload);
 
-      setIngredients([...ingredients, payload]);
-      setNewIngredient({ ingredient_id: "", quantity: "", unit: "", optional: false });
+      const matchedIngredient = availableIngredients.find(
+        (ing) => ing.ingredient_id === parseInt(newIngredient.ingredient_id, 10)
+      );
+
+      setIngredients([
+        ...ingredients,
+        {
+          ...payload,
+          ingredient_name: matchedIngredient?.name || "Unknown",
+          unit: matchedIngredient?.unit || "Unknown",
+        },
+      ]);
+      setNewIngredient({ ingredient_id: "", quantity: "", optional: false, preparation_style: "" });
     } catch (error) {
       console.error("Error adding ingredient:", error);
     }
@@ -121,6 +143,7 @@ function RecipeDetail() {
               <th>Ingredient</th>
               <th>Quantity</th>
               <th>Unit</th>
+              <th>Preparation Style</th>
               <th>Optional</th>
               <th>Actions</th>
             </tr>
@@ -129,9 +152,9 @@ function RecipeDetail() {
             {ingredients.map((ingredient) => (
               <tr key={ingredient.ingredient_id}>
                 <td>{ingredient.ingredient_name || "Unknown"}</td>
-
                 <td>{ingredient.quantity}</td>
                 <td>{ingredient.unit}</td>
+                <td>{ingredient.preparation_style || "None"}</td>
                 <td>
                   <input
                     type="checkbox"
@@ -168,9 +191,11 @@ function RecipeDetail() {
           />
           <input
             type="text"
-            placeholder="Unit"
-            value={newIngredient.unit}
-            onChange={(e) => setNewIngredient({ ...newIngredient, unit: e.target.value })}
+            placeholder="Preparation Style"
+            value={newIngredient.preparation_style}
+            onChange={(e) =>
+              setNewIngredient({ ...newIngredient, preparation_style: e.target.value })
+            }
           />
           <label>
             Optional
@@ -182,7 +207,6 @@ function RecipeDetail() {
           </label>
           <button onClick={addIngredient}>Add Ingredient</button>
         </div>
-        <button>Edit Ingredients</button>
       </div>
     </div>
   );
