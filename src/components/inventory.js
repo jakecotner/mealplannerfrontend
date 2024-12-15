@@ -120,64 +120,26 @@ function Inventory() {
         throw new Error("No token found. Please log in.");
       }
 
-      const existingItem = inventory.find(
-        (item) => parseInt(item.ingredient_id, 10) === parseInt(newItem.ingredient_id, 10)
-      );
+      const payload = {
+        ingredient_id: parseInt(newItem.ingredient_id, 10),
+        quantity: parseFloat(newItem.quantity),
+        unit: newItem.unit || null,
+        preferred_store: newItem.preferred_store || null,
+        link_to_purchase: newItem.link_to_purchase || null,
+        expiry_date: newItem.expiry_date || null,
+        location: newItem.location || null,
+        quantity_threshold: parseFloat(newItem.quantity_threshold) || null,
+        notes: newItem.notes || null,
+      };
 
-      if (existingItem) {
-        const updatedQuantity = parseFloat(existingItem.quantity) + parseFloat(newItem.quantity);
-        const response = await axios.put(
-          `http://127.0.0.1:8000/inventory/${existingItem.ingredient_id}`,
-          {
-            ingredient_id: existingItem.ingredient_id,
-            quantity: updatedQuantity,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+      const response = await axios.post("http://127.0.0.1:8000/inventory", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-        setInventory(
-          inventory.map((item) =>
-            item.ingredient_id === existingItem.ingredient_id ? response.data : item
-          )
-        );
-      } else {
-        const payload = {
-          ingredient_id: parseInt(newItem.ingredient_id, 10),
-          quantity: parseFloat(newItem.quantity),
-          unit: newItem.unit || null,
-          preferred_store: newItem.preferred_store || null,
-          link_to_purchase: newItem.link_to_purchase || null,
-          expiry_date: newItem.expiry_date || null,
-          location: newItem.location || null,
-          quantity_threshold: parseFloat(newItem.quantity_threshold) || null,
-          notes: newItem.notes || null,
-        };
-
-        const response = await axios.post(
-          "http://127.0.0.1:8000/inventory",
-          payload,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const addedItem = response.data;
-        setInventory([
-          ...inventory,
-          {
-            ...addedItem,
-            ingredient_name: ingredients.find((ing) => ing.ingredient_id === addedItem.ingredient_id)?.name,
-          },
-        ]);
-      }
-
-      // Reset the form
+      setInventory((prev) => [...prev, response.data]);
       setNewItem({
         ingredient_id: "",
         quantity: 0,
@@ -233,7 +195,9 @@ function Inventory() {
               type="number"
               placeholder="Quantity"
               value={newItem.quantity}
-              onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) })}
+              onChange={(e) =>
+                setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })
+              }
               required
             />
           </div>
@@ -271,7 +235,9 @@ function Inventory() {
               type="number"
               placeholder="Quantity Threshold"
               value={newItem.quantity_threshold}
-              onChange={(e) => setNewItem({ ...newItem, quantity_threshold: parseFloat(e.target.value) })}
+              onChange={(e) =>
+                setNewItem({ ...newItem, quantity_threshold: parseFloat(e.target.value) || 0 })
+              }
             />
           </div>
           <textarea
