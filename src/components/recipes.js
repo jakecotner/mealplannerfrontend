@@ -4,23 +4,63 @@ import { Link, useParams } from "react-router-dom";
 
 function RecipesPage() {
   const [recipes, setRecipes] = useState([]);
+  const [isLoading, setIsLoading] = useState(false); // To handle loading state
+  const [preferences, setPreferences] = useState(""); // To take user preferences input
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchRecipes = async () => {
       try {
-        const response = await axios.get("http://127.0.0.1:8000/recipes");
+        const token = localStorage.getItem("token");
+        const response = await axios.get("http://127.0.0.1:8000/recipes", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setRecipes(response.data);
       } catch (error) {
         console.error("Error fetching recipes:", error);
+        setError("Failed to fetch recipes. Please log in and try again.");
       }
     };
 
     fetchRecipes();
   }, []);
 
+  const generateRecipe = async () => {
+    try {
+      setIsLoading(true); // Indicate the process is starting
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "http://127.0.0.1:8000/recipes/auto-generate/",
+        { preferences },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      alert(response.data.message);
+      setIsLoading(false);
+
+      // Refresh the recipes list
+      const updatedRecipes = await axios.get("http://127.0.0.1:8000/recipes", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setRecipes(updatedRecipes.data);
+    } catch (error) {
+      console.error("Error generating recipe:", error);
+      alert("Failed to generate recipe.");
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div>
       <h1>Recipes</h1>
+      {error && <p style={{ color: "red" }}>{error}</p>}
       <ul>
         {recipes.map((recipe) => (
           <li key={recipe.recipe_id}>
@@ -28,6 +68,21 @@ function RecipesPage() {
           </li>
         ))}
       </ul>
+
+      {/* Generate Recipe Section */}
+      <div style={{ marginTop: "20px" }}>
+        <h2>Generate AI Recipe</h2>
+        <input
+          type="text"
+          placeholder="Enter preferences (e.g., gluten-free, vegan)"
+          value={preferences}
+          onChange={(e) => setPreferences(e.target.value)}
+          style={{ marginRight: "10px", padding: "5px" }}
+        />
+        <button onClick={generateRecipe} disabled={isLoading}>
+          {isLoading ? "Generating..." : "Generate Recipe"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -47,20 +102,38 @@ function RecipeDetail() {
   useEffect(() => {
     const fetchRecipeDetails = async () => {
       try {
-        const availableIngredientsResponse = await axios.get(
-          "http://127.0.0.1:8000/ingredients"
-        );
-        const fetchedAvailableIngredients = availableIngredientsResponse.data;
-        setAvailableIngredients(fetchedAvailableIngredients);
+        const token = localStorage.getItem("token");
 
-        const recipeResponse = await axios.get(`http://127.0.0.1:8000/recipes/${recipeId}`);
+        const availableIngredientsResponse = await axios.get(
+          "http://127.0.0.1:8000/ingredients",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setAvailableIngredients(availableIngredientsResponse.data);
+
+        const recipeResponse = await axios.get(
+          `http://127.0.0.1:8000/recipes/${recipeId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
         setRecipe(recipeResponse.data);
 
         const ingredientsResponse = await axios.get(
-          `http://127.0.0.1:8000/recipe-ingredients/${recipeId}`
+          `http://127.0.0.1:8000/recipe-ingredients/${recipeId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
         const fetchedIngredients = ingredientsResponse.data.map((ingredient) => {
-          const matchedIngredient = fetchedAvailableIngredients.find(
+          const matchedIngredient = availableIngredientsResponse.data.find(
             (ing) => ing.ingredient_id === ingredient.ingredient_id
           );
           return {
@@ -80,6 +153,8 @@ function RecipeDetail() {
 
   const addIngredient = async () => {
     try {
+      const token = localStorage.getItem("token");
+
       const payload = {
         recipe_id: parseInt(recipeId, 10),
         ingredient_id: parseInt(newIngredient.ingredient_id, 10),
@@ -88,7 +163,11 @@ function RecipeDetail() {
         preparation_style: newIngredient.preparation_style,
       };
 
-      await axios.post("http://127.0.0.1:8000/recipe-ingredients/", payload);
+      await axios.post("http://127.0.0.1:8000/recipe-ingredients/", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const matchedIngredient = availableIngredients.find(
         (ing) => ing.ingredient_id === parseInt(newIngredient.ingredient_id, 10)
@@ -110,8 +189,15 @@ function RecipeDetail() {
 
   const deleteIngredient = async (ingredientId) => {
     try {
+      const token = localStorage.getItem("token");
+
       await axios.delete(
-        `http://127.0.0.1:8000/recipe-ingredients/${recipeId}/${ingredientId}`
+        `http://127.0.0.1:8000/recipe-ingredients/${recipeId}/${ingredientId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       setIngredients(ingredients.filter((ing) => ing.ingredient_id !== ingredientId));
     } catch (error) {
@@ -123,6 +209,7 @@ function RecipeDetail() {
 
   return (
     <div style={{ display: "flex", justifyContent: "space-between" }}>
+      {/* Recipe Details */}
       <div style={{ flex: 1, marginRight: "20px" }}>
         <h1>{recipe.title}</h1>
         <p><strong>Instructions:</strong> {recipe.instructions}</p>
@@ -135,6 +222,7 @@ function RecipeDetail() {
         <button>Edit Other Details</button>
       </div>
 
+      {/* Ingredients Section */}
       <div style={{ flex: 1 }}>
         <h2>Ingredients</h2>
         <table>
@@ -170,6 +258,7 @@ function RecipeDetail() {
           </tbody>
         </table>
 
+        {/* Add Ingredient Section */}
         <h3>Add Ingredient</h3>
         <div>
           <select
