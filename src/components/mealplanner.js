@@ -4,8 +4,7 @@ import axios from "axios";
 function MealPlanner() {
   const [mealPlan, setMealPlan] = useState({
     name: "",
-    startDate: "",
-    endDate: "",
+    weekOf: "",
   });
   const [mealSlots, setMealSlots] = useState({
     Monday: { breakfast: null, lunch: null, dinner: null },
@@ -17,23 +16,42 @@ function MealPlanner() {
     Sunday: { breakfast: null, lunch: null, dinner: null },
   });
   const [recipes, setRecipes] = useState([]);
-  const [inventory, setInventory] = useState([]);
-  const [missingItems, setMissingItems] = useState([]);
+  const [weekOptions, setWeekOptions] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const recipesResponse = await axios.get("http://127.0.0.1:8000/recipes");
-        setRecipes(recipesResponse.data);
+        // Retrieve token from local storage (or wherever it's stored)
+        const token = localStorage.getItem("token");
 
-        const inventoryResponse = await axios.get("http://127.0.0.1:8000/inventory/1"); // Replace '1' with user ID
-        setInventory(inventoryResponse.data);
+        const recipesResponse = await axios.get("http://127.0.0.1:8000/recipes", {
+          headers: {
+            Authorization: `Bearer ${token}`, // Add the token to the request
+          },
+        });
+
+        setRecipes(recipesResponse.data);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching recipes:", error);
       }
     };
 
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const generateWeekOptions = () => {
+      const today = new Date();
+      const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
+      const options = [];
+      for (let i = 0; i < 4; i++) {
+        const weekStart = new Date(startOfWeek);
+        weekStart.setDate(weekStart.getDate() + i * 7);
+        options.push(weekStart.toISOString().split("T")[0]);
+      }
+      setWeekOptions(options);
+    };
+    generateWeekOptions();
   }, []);
 
   const handleMealChange = (day, meal, recipeId) => {
@@ -43,30 +61,34 @@ function MealPlanner() {
     }));
   };
 
-  const verifyInventory = () => {
-    const requiredIngredients = [];
-    Object.values(mealSlots).forEach((meals) => {
-      Object.values(meals).forEach((recipeId) => {
-        if (recipeId) {
-          const recipe = recipes.find((r) => r.recipe_id === recipeId);
-          if (recipe) {
-            requiredIngredients.push(...recipe.ingredients);
-          }
-        }
-      });
-    });
-
-    const missing = requiredIngredients.filter((ingredient) => {
-      const inventoryItem = inventory.find((i) => i.ingredient_id === ingredient.ingredient_id);
-      return !inventoryItem || inventoryItem.quantity < ingredient.quantity;
-    });
-
-    setMissingItems(missing);
-  };
-
   const saveMealPlan = async () => {
     try {
-      const mealPlanResponse = await axios.post("http://127.0.0.1:8000/meal-plans", mealPlan);
+      const token = localStorage.getItem("token");
+      const userId = localStorage.getItem("user_id"); // Ensure this is set during login
+
+      if (!userId) {
+        console.error("User ID not found. Ensure you are logged in.");
+        return;
+      }
+
+      const payload = {
+        user_id: parseInt(userId, 10),
+        name: mealPlan.name,
+        week_of: mealPlan.weekOf, // Ensure this is in "YYYY-MM-DD" format
+      };
+
+      console.log("Payload being sent to backend:", payload); // Debugging
+
+      const mealPlanResponse = await axios.post(
+        "http://127.0.0.1:8000/meal-plans",
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
       const mealPlanId = mealPlanResponse.data.meal_plan_id;
 
       const mealPlanRecipes = [];
@@ -78,18 +100,25 @@ function MealPlanner() {
               recipe_id: recipeId,
               meal,
               day_of_week: day,
-              date: null, // Calculate date based on startDate
             });
           }
         });
       });
 
-      await axios.post("http://127.0.0.1:8000/meal-plan-recipes", mealPlanRecipes);
+      console.log("MealPlanRecipes payload:", mealPlanRecipes); // Debugging
+
+      await axios.post("http://127.0.0.1:8000/meal-plan-recipes", mealPlanRecipes, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
       alert("Meal plan saved successfully!");
     } catch (error) {
       console.error("Error saving meal plan:", error);
     }
   };
+
 
   return (
     <div>
@@ -104,20 +133,20 @@ function MealPlanner() {
           />
         </label>
         <label>
-          Start Date:
-          <input
-            type="date"
-            value={mealPlan.startDate}
-            onChange={(e) => setMealPlan({ ...mealPlan, startDate: e.target.value })}
-          />
-        </label>
-        <label>
-          End Date:
-          <input
-            type="date"
-            value={mealPlan.endDate}
-            onChange={(e) => setMealPlan({ ...mealPlan, endDate: e.target.value })}
-          />
+          Week Of:
+          <select
+            value={mealPlan.weekOf}
+            onChange={(e) => setMealPlan({ ...mealPlan, weekOf: e.target.value })}
+          >
+            <option value="" disabled>
+              Select Week
+            </option>
+            {weekOptions.map((date, index) => (
+              <option key={index} value={date}>
+                {date}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
       <table>
@@ -139,7 +168,9 @@ function MealPlanner() {
                     value={meals[meal] || ""}
                     onChange={(e) => handleMealChange(day, meal, parseInt(e.target.value, 10))}
                   >
-                    <option value="" disabled>Select Recipe</option>
+                    <option value="" disabled>
+                      Select Recipe
+                    </option>
                     {recipes.map((recipe) => (
                       <option key={recipe.recipe_id} value={recipe.recipe_id}>
                         {recipe.title}
@@ -152,19 +183,6 @@ function MealPlanner() {
           ))}
         </tbody>
       </table>
-      <button onClick={verifyInventory}>Verify Inventory</button>
-      {missingItems.length > 0 && (
-        <div>
-          <h3>Missing Ingredients</h3>
-          <ul>
-            {missingItems.map((item) => (
-              <li key={item.ingredient_id}>
-                {item.name}: {item.quantity} {item.unit}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
       <button onClick={saveMealPlan}>Save Meal Plan</button>
     </div>
   );

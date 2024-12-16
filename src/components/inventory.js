@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
 
 function Inventory() {
   const [inventory, setInventory] = useState([]);
@@ -77,42 +78,7 @@ function Inventory() {
     setUpdatedQuantity(item.quantity);
   };
 
-  const saveEdit = async (e) => {
-    if (e.type === "click" || (e.type === "keydown" && e.key === "Enter")) {
-      try {
-        const token = localStorage.getItem("token");
-
-        if (!token) {
-          throw new Error("No token found. Please log in.");
-        }
-
-        const response = await axios.put(
-          `http://127.0.0.1:8000/inventory/${editingItem.ingredient_id}`,
-          {
-            ingredient_id: editingItem.ingredient_id,
-            quantity: updatedQuantity,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        setInventory(
-          inventory.map((item) =>
-            item.ingredient_id === editingItem.ingredient_id ? response.data : item
-          )
-        );
-        setEditingItem(null);
-      } catch (error) {
-        console.error("Error updating item:", error);
-      }
-    }
-  };
-
-  const addItem = async (e) => {
-    e.preventDefault();
+  const saveEdit = async () => {
     try {
       const token = localStorage.getItem("token");
 
@@ -120,10 +86,45 @@ function Inventory() {
         throw new Error("No token found. Please log in.");
       }
 
+      const response = await axios.put(
+        `http://127.0.0.1:8000/inventory/${editingItem.ingredient_id}`,
+        {
+          ingredient_id: editingItem.ingredient_id,
+          quantity: updatedQuantity,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setInventory(
+        inventory.map((item) =>
+          item.ingredient_id === editingItem.ingredient_id ? response.data : item
+        )
+      );
+      setEditingItem(null);
+    } catch (error) {
+      console.error("Error updating item:", error);
+    }
+  };
+
+  const addItem = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No token found. Ensure the user is logged in.");
+      }
+
+      const decodedToken = jwtDecode(token);
+      const userId = decodedToken.sub || decodedToken.user_id;
+
       const payload = {
+        user_id: parseInt(userId, 10),
         ingredient_id: parseInt(newItem.ingredient_id, 10),
         quantity: parseFloat(newItem.quantity),
-        unit: newItem.unit || null,
         preferred_store: newItem.preferred_store || null,
         link_to_purchase: newItem.link_to_purchase || null,
         expiry_date: newItem.expiry_date || null,
@@ -132,14 +133,15 @@ function Inventory() {
         notes: newItem.notes || null,
       };
 
+      console.log("Payload being sent to backend:", payload);
+
       const response = await axios.post("http://127.0.0.1:8000/inventory", payload, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
         },
       });
 
-      setInventory((prev) => [...prev, response.data]);
+      setInventory([...inventory, response.data]);
       setNewItem({
         ingredient_id: "",
         quantity: 0,

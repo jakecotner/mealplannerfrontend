@@ -4,10 +4,8 @@ import Inventory from "./components/inventory";
 import Login from "./components/Login";
 import { RecipesPage, RecipeDetail } from "./components/recipes";
 import MealPlanner from "./components/mealplanner";
-
-function Home() {
-  return <h1>Welcome to MealPlannerGPT</h1>;
-}
+import Ingredients from "./components/Ingredients"; // Import the Ingredients component
+import RecipeGenerator from "./components/RecipeGenerator"; // Updated import for RecipeGenerator
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -32,10 +30,11 @@ function App() {
         </div>
         <nav>
           <ul style={{ display: "flex", listStyle: "none", gap: "15px", margin: 0, padding: 0 }}>
-            <li><Link to="/">Home</Link></li>
+            <li><Link to="/">AI Recipe Generator</Link></li> {/* Updated nav link */}
             <li><Link to="/inventory">Inventory</Link></li>
             <li><Link to="/recipes">Recipes</Link></li>
             <li><Link to="/meal-plans">Meal Plans</Link></li>
+            <li><Link to="/ingredients">Ingredients</Link></li> {/* New Ingredients page link */}
             {!isLoggedIn ? (
               <li><Link to="/login">Log In</Link></li>
             ) : (
@@ -53,11 +52,12 @@ function App() {
       </div>
 
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<RecipeGenerator />} /> {/* Updated default route */}
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/recipes" element={<RecipesPage />} />
         <Route path="/recipes/:recipeId" element={<RecipeDetail />} />
         <Route path="/meal-plans" element={<MealPlanner />} />
+        <Route path="/ingredients" element={<Ingredients />} /> {/* New route for Ingredients */}
         <Route path="/login" element={<Login />} />
       </Routes>
     </div>
