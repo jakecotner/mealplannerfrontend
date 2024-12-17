@@ -15,12 +15,13 @@ function Ingredients() {
     seasonal: false,
   });
 
+  // Fetch ingredients on component mount
   useEffect(() => {
     const fetchIngredients = async () => {
       try {
-        const response = await axios.get("http://127.0.0.1:8000/ingredients/user", {
+        const response = await axios.get("http://127.0.0.1:8000/ingredients", {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`, // Assuming token is stored in localStorage
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
         setIngredients(response.data);
@@ -31,18 +32,23 @@ function Ingredients() {
       }
     };
 
-    fetchIngredients();
-  }, []);
+    fetchIngredients(); // Call the function inside useEffect
+  }, []); // Empty dependency array ensures this runs once on mount
 
+  // Handle adding a new ingredient
   const handleAddIngredient = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post("http://127.0.0.1:8000/ingredients/", newIngredient, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      setIngredients([...ingredients, response.data]);
+      const response = await axios.post(
+        "http://127.0.0.1:8000/ingredients/",
+        newIngredient,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      setIngredients([...ingredients, response.data]); // Add the new ingredient to the list
       setNewIngredient({
         name: "",
         unit: "",
@@ -58,6 +64,7 @@ function Ingredients() {
     }
   };
 
+  // Show a loading message while data is being fetched
   if (loading) {
     return <p>Loading ingredients...</p>;
   }
@@ -104,7 +111,9 @@ function Ingredients() {
           <input
             type="checkbox"
             checked={newIngredient.gluten_free}
-            onChange={(e) => setNewIngredient({ ...newIngredient, gluten_free: e.target.checked })}
+            onChange={(e) =>
+              setNewIngredient({ ...newIngredient, gluten_free: e.target.checked })
+            }
           />
         </label>
         <label>

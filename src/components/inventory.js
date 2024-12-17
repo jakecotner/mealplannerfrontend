@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { jwtDecode } from "jwt-decode";
 
 function Inventory() {
   const [inventory, setInventory] = useState([]);
-  const [ingredients, setIngredients] = useState([]); // List of valid ingredients
+  const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingItem, setEditingItem] = useState(null);
   const [updatedQuantity, setUpdatedQuantity] = useState(0);
@@ -20,83 +19,62 @@ function Inventory() {
     notes: "",
   });
 
+  // Fetch data (inventory and ingredients) on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-
-        if (!token) {
-          throw new Error("No token found. Please log in.");
-        }
+        if (!token) throw new Error("No token found. Please log in.");
 
         // Fetch ingredients
         const ingredientsResponse = await axios.get("http://127.0.0.1:8000/ingredients", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         setIngredients(ingredientsResponse.data);
 
         // Fetch inventory
         const inventoryResponse = await axios.get("http://127.0.0.1:8000/inventory", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         setInventory(inventoryResponse.data);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching data:", error.message);
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
+  // Delete an item
   const deleteItem = async (ingredientId) => {
     try {
       const token = localStorage.getItem("token");
-
-      if (!token) {
-        throw new Error("No token found. Please log in.");
-      }
-
       await axios.delete(`http://127.0.0.1:8000/inventory/${ingredientId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       setInventory(inventory.filter((item) => item.ingredient_id !== ingredientId));
     } catch (error) {
-      console.error("Error deleting item:", error);
+      console.error("Error deleting item:", error.message);
     }
   };
 
+  // Start editing an item
   const handleEdit = (item) => {
     setEditingItem(item);
     setUpdatedQuantity(item.quantity);
   };
 
+  // Save edited item
   const saveEdit = async () => {
     try {
       const token = localStorage.getItem("token");
-
-      if (!token) {
-        throw new Error("No token found. Please log in.");
-      }
+      const payload = { quantity: updatedQuantity };
 
       const response = await axios.put(
         `http://127.0.0.1:8000/inventory/${editingItem.ingredient_id}`,
-        {
-          ingredient_id: editingItem.ingredient_id,
-          quantity: updatedQuantity,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setInventory(
@@ -106,23 +84,17 @@ function Inventory() {
       );
       setEditingItem(null);
     } catch (error) {
-      console.error("Error updating item:", error);
+      console.error("Error updating item:", error.message);
     }
   };
 
+  // Add a new item
   const addItem = async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No token found. Ensure the user is logged in.");
-      }
-
-      const decodedToken = jwtDecode(token);
-      const userId = decodedToken.sub || decodedToken.user_id;
 
       const payload = {
-        user_id: parseInt(userId, 10),
         ingredient_id: parseInt(newItem.ingredient_id, 10),
         quantity: parseFloat(newItem.quantity),
         preferred_store: newItem.preferred_store || null,
@@ -133,12 +105,8 @@ function Inventory() {
         notes: newItem.notes || null,
       };
 
-      console.log("Payload being sent to backend:", payload);
-
       const response = await axios.post("http://127.0.0.1:8000/inventory", payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       setInventory([...inventory, response.data]);
@@ -154,7 +122,7 @@ function Inventory() {
         notes: "",
       });
     } catch (error) {
-      console.error("Error adding item:", error.response?.data || error.message);
+      console.error("Error adding item:", error.message);
     }
   };
 
@@ -164,84 +132,49 @@ function Inventory() {
 
   return (
     <div style={{ display: "flex", gap: "20px" }}>
-      {/* Left-Side Form */}
+      {/* Add Item Form */}
       <div style={{ flex: 1 }}>
         <h2>Add Item</h2>
         <form onSubmit={addItem} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <select
-              value={newItem.ingredient_id}
-              onChange={(e) => {
-                const selectedId = e.target.value;
-                const selectedIngredient = ingredients.find(
-                  (ing) => parseInt(ing.ingredient_id, 10) === parseInt(selectedId, 10)
-                );
-                setNewItem({
-                  ...newItem,
-                  ingredient_id: selectedId,
-                  unit: selectedIngredient?.unit || "",
-                });
-              }}
-              required
-            >
-              <option value="" disabled>
-                Select Ingredient
+          <select
+            value={newItem.ingredient_id}
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              const selectedIngredient = ingredients.find(
+                (ing) => parseInt(ing.ingredient_id, 10) === parseInt(selectedId, 10)
+              );
+              setNewItem({ ...newItem, ingredient_id: selectedId, unit: selectedIngredient?.unit || "" });
+            }}
+            required
+          >
+            <option value="" disabled>
+              Select Ingredient
+            </option>
+            {ingredients.map((ingredient) => (
+              <option key={ingredient.ingredient_id} value={ingredient.ingredient_id}>
+                {ingredient.name}
               </option>
-              {ingredients.map((ingredient) => (
-                <option key={ingredient.ingredient_id} value={ingredient.ingredient_id}>
-                  {ingredient.name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              placeholder="Quantity"
-              value={newItem.quantity}
-              onChange={(e) =>
-                setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })
-              }
-              required
-            />
-          </div>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <input type="text" value={newItem.unit} placeholder="Unit" readOnly />
-            <input
-              type="text"
-              placeholder="Preferred Store"
-              value={newItem.preferred_store}
-              onChange={(e) => setNewItem({ ...newItem, preferred_store: e.target.value })}
-            />
-          </div>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <input
-              type="url"
-              placeholder="Link to Purchase"
-              value={newItem.link_to_purchase}
-              onChange={(e) => setNewItem({ ...newItem, link_to_purchase: e.target.value })}
-            />
-            <input
-              type="date"
-              placeholder="Expiry Date"
-              value={newItem.expiry_date}
-              onChange={(e) => setNewItem({ ...newItem, expiry_date: e.target.value })}
-            />
-          </div>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <input
-              type="text"
-              placeholder="Location"
-              value={newItem.location}
-              onChange={(e) => setNewItem({ ...newItem, location: e.target.value })}
-            />
-            <input
-              type="number"
-              placeholder="Quantity Threshold"
-              value={newItem.quantity_threshold}
-              onChange={(e) =>
-                setNewItem({ ...newItem, quantity_threshold: parseFloat(e.target.value) || 0 })
-              }
-            />
-          </div>
+            ))}
+          </select>
+          <input
+            type="number"
+            placeholder="Quantity"
+            value={newItem.quantity}
+            onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })}
+            required
+          />
+          <input
+            type="text"
+            placeholder="Preferred Store"
+            value={newItem.preferred_store}
+            onChange={(e) => setNewItem({ ...newItem, preferred_store: e.target.value })}
+          />
+          <input
+            type="date"
+            placeholder="Expiry Date"
+            value={newItem.expiry_date}
+            onChange={(e) => setNewItem({ ...newItem, expiry_date: e.target.value })}
+          />
           <textarea
             placeholder="Notes"
             value={newItem.notes}
@@ -251,7 +184,7 @@ function Inventory() {
         </form>
       </div>
 
-      {/* Right-Side Inventory Table */}
+      {/* Inventory Table */}
       <div style={{ flex: 2 }}>
         <h2>Inventory</h2>
         <table>
@@ -259,7 +192,6 @@ function Inventory() {
             <tr>
               <th>Ingredient</th>
               <th>Quantity</th>
-              <th>Unit</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -268,7 +200,6 @@ function Inventory() {
               <tr key={item.ingredient_id}>
                 <td>{item.ingredient_name}</td>
                 <td>{item.quantity}</td>
-                <td>{item.unit}</td>
                 <td>
                   {editingItem && editingItem.ingredient_id === item.ingredient_id ? (
                     <button onClick={saveEdit}>Save</button>
