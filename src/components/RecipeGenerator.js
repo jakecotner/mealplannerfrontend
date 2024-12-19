@@ -2,11 +2,11 @@ import React, { useState } from "react";
 import axios from "axios";
 
 function RecipeGenerator() {
-  const [preferences, setPreferences] = useState(""); // User input for preferences
-  const [generatedRecipe, setGeneratedRecipe] = useState(null); // Holds the generated recipe
-  const [loading, setLoading] = useState(false); // Loading state for recipe generation
-  const [saving, setSaving] = useState(false); // Loading state for saving
-  const [error, setError] = useState(""); // Error messages
+  const [preferences, setPreferences] = useState("");
+  const [generatedRecipe, setGeneratedRecipe] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   // Function to generate a recipe
   const handleGenerateRecipe = async () => {
@@ -19,73 +19,72 @@ function RecipeGenerator() {
       }
 
       const response = await axios.post(
-        "http://127.0.0.1:8000/api/v1/recipes/generate/", // Corrected URL
+        "http://127.0.0.1:8000/api/v1/recipes/generate/",
         null,
         {
-          params: { preferences }, // Send preferences as query params
+          params: {
+            preferences: `Please create a recipe based on this prompt: ${preferences}`,
+          },
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      setGeneratedRecipe(response.data); // Store the generated recipe
+      if (response.data) {
+        setGeneratedRecipe({
+          ...response.data,
+          recipe_id: response.data.recipe_id || null, // Ensure recipe_id is present
+        });
+      } else {
+        throw new Error("No recipe was generated. Please try again.");
+      }
     } catch (err) {
       console.error("Error generating recipe:", err);
       setError(
-        err.response?.data?.detail ||
-          "Failed to generate recipe. Please try again."
+        err.response?.data?.detail || "Failed to generate recipe. Please try again."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // Combined Function to Save Recipe Details and Ingredients
+  // Function to save the recipe
   const handleSaveRecipe = async () => {
-    setSaving(true);
-    setError("");
+    if (!generatedRecipe || !generatedRecipe.recipe_id) {
+      setError("No recipe to save. Please generate a recipe first.");
+      return;
+    }
+
     try {
+      setSaving(true);
       const token = localStorage.getItem("token");
       if (!token) {
         throw new Error("User not authenticated. Please log in.");
       }
 
-      // Step 1: Save Recipe Details
-      const recipeDetailsResponse = await axios.post(
-        "http://127.0.0.1:8000/api/v1/recipes/save/details/",
+      const payload = {
+        recipe_id: generatedRecipe.recipe_id,
+        ingredients: generatedRecipe.ingredients,
+      };
+
+      const response = await axios.post(
+        "http://127.0.0.1:8000/api/v1/recipes/save/ingredients/",
+        payload,
         {
-          title: generatedRecipe.title,
-          instructions: generatedRecipe.instructions,
-          category: generatedRecipe.category || "General",
-          servings: generatedRecipe.servings,
-          prep_time: generatedRecipe.prep_time,
-          cook_time: generatedRecipe.cook_time,
-          notes: "",
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
-      const recipeId = recipeDetailsResponse.data.recipe_id;
-
-      // Step 2: Save Recipe Ingredients
-      const ingredientPayload = generatedRecipe.ingredients.map((ingredient) => ({
-        name: ingredient.name,
-        quantity: ingredient.quantity,
-        optional: false,
-        preparation_style: "",
-      }));
-
-      console.log("Payload being sent:", { recipe_id: recipeId, ingredients: ingredientPayload }); // Debug
-
-      await axios.post(
-        "http://127.0.0.1:8000/api/v1/recipes/save/ingredients/", // Correct URL
-        { recipe_id: recipeId, ingredients: ingredientPayload }, // Both fields in the body
-        { headers: { Authorization: `Bearer ${token}` } }
+      if (response.data.message) {
+        alert("Recipe and ingredients saved successfully!");
+      } else {
+        throw new Error("Failed to save recipe. Server did not respond properly.");
+      }
+    } catch (error) {
+      console.error("Error saving recipe:", error);
+      setError(
+        error.response?.data?.detail ||
+          "Failed to save recipe. Please ensure all fields are valid."
       );
-
-      alert("Recipe and ingredients saved successfully!");
-    } catch (err) {
-      console.error("Error saving recipe:", err);
-      setError("Failed to save the recipe. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -93,7 +92,7 @@ function RecipeGenerator() {
 
   return (
     <div style={{ display: "flex", height: "100vh", padding: "20px" }}>
-      {/* Input Area - Left */}
+      {/* Input Area */}
       <div style={{ flex: 1, marginRight: "20px" }}>
         <h2>Generate a Recipe</h2>
         <textarea
@@ -123,31 +122,30 @@ function RecipeGenerator() {
         </button>
       </div>
 
-      {/* Output Area - Right */}
+      {/* Output Area */}
       <div style={{ flex: 2, borderLeft: "1px solid #ccc", paddingLeft: "20px" }}>
-        {error && (
-          <div style={{ color: "red" }}>
-            {typeof error === "string"
-              ? error
-              : Array.isArray(error)
-              ? error.map((err, idx) => (
-                  <p key={idx}>{err.msg || JSON.stringify(err)}</p>
-                ))
-              : typeof error === "object"
-              ? <p>{JSON.stringify(error)}</p>
-              : <p>{error}</p>}
-          </div>
-        )}
+        {error && <div style={{ color: "red", marginBottom: "10px" }}>{error}</div>}
 
         {generatedRecipe ? (
           <div>
             <h2>{generatedRecipe.title}</h2>
-            <p><strong>Category:</strong> {generatedRecipe.category}</p>
-            <p><strong>Servings:</strong> {generatedRecipe.servings}</p>
-            <p><strong>Prep Time:</strong> {generatedRecipe.prep_time} minutes</p>
-            <p><strong>Cook Time:</strong> {generatedRecipe.cook_time} minutes</p>
-            <p><strong>Instructions:</strong></p>
+            <p>
+              <strong>Category:</strong> {generatedRecipe.category}
+            </p>
+            <p>
+              <strong>Servings:</strong> {generatedRecipe.servings}
+            </p>
+            <p>
+              <strong>Prep Time:</strong> {generatedRecipe.prep_time} minutes
+            </p>
+            <p>
+              <strong>Cook Time:</strong> {generatedRecipe.cook_time} minutes
+            </p>
+            <p>
+              <strong>Instructions:</strong>
+            </p>
             <p>{generatedRecipe.instructions}</p>
+
             <h3>Ingredients:</h3>
             <ul>
               {generatedRecipe.ingredients.map((ingredient, index) => (
@@ -156,7 +154,7 @@ function RecipeGenerator() {
                 </li>
               ))}
             </ul>
-            {/* Save Button */}
+
             <button
               onClick={handleSaveRecipe}
               disabled={saving}

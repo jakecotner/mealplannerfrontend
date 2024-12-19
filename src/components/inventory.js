@@ -26,8 +26,8 @@ function Inventory() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("No token found. Please log in.");
 
-        // Fetch ingredients
-        const ingredientsResponse = await axios.get("http://127.0.0.1:8000/ingredients", {
+        // Fetch user-specific ingredients
+        const ingredientsResponse = await axios.get("http://127.0.0.1:8000/ingredients/user", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setIngredients(ingredientsResponse.data);
@@ -36,7 +36,18 @@ function Inventory() {
         const inventoryResponse = await axios.get("http://127.0.0.1:8000/inventory", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setInventory(inventoryResponse.data);
+
+        // Merge unit data from ingredients into inventory
+        const inventoryWithUnits = inventoryResponse.data.map((item) => {
+          const ingredient = ingredientsResponse.data.find(
+            (ing) => ing.ingredient_id === item.ingredient_id
+          );
+          return {
+            ...item,
+            unit: ingredient?.unit || "N/A",
+          };
+        });
+        setInventory(inventoryWithUnits);
       } catch (error) {
         console.error("Error fetching data:", error.message);
       } finally {
@@ -131,87 +142,101 @@ function Inventory() {
   }
 
   return (
-    <div style={{ display: "flex", gap: "20px" }}>
-      {/* Add Item Form */}
-      <div style={{ flex: 1 }}>
-        <h2>Add Item</h2>
-        <form onSubmit={addItem} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <select
-            value={newItem.ingredient_id}
-            onChange={(e) => {
-              const selectedId = e.target.value;
-              const selectedIngredient = ingredients.find(
-                (ing) => parseInt(ing.ingredient_id, 10) === parseInt(selectedId, 10)
-              );
-              setNewItem({ ...newItem, ingredient_id: selectedId, unit: selectedIngredient?.unit || "" });
-            }}
-            required
-          >
-            <option value="" disabled>
-              Select Ingredient
-            </option>
-            {ingredients.map((ingredient) => (
-              <option key={ingredient.ingredient_id} value={ingredient.ingredient_id}>
-                {ingredient.name}
+    <div>
+      <div style={{ display: "flex", gap: "20px" }}>
+        {/* Add Item Form */}
+        <div style={{ flex: 1 }}>
+          <h2>Add Item</h2>
+          <form onSubmit={addItem} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <select
+              value={newItem.ingredient_id}
+              onChange={(e) => {
+                const selectedId = e.target.value;
+                const selectedIngredient = ingredients.find(
+                  (ing) => parseInt(ing.ingredient_id, 10) === parseInt(selectedId, 10)
+                );
+                setNewItem({
+                  ...newItem,
+                  ingredient_id: selectedId,
+                  unit: selectedIngredient?.unit || "",
+                });
+              }}
+              required
+            >
+              <option value="" disabled>
+                Select Ingredient
               </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            placeholder="Quantity"
-            value={newItem.quantity}
-            onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Preferred Store"
-            value={newItem.preferred_store}
-            onChange={(e) => setNewItem({ ...newItem, preferred_store: e.target.value })}
-          />
-          <input
-            type="date"
-            placeholder="Expiry Date"
-            value={newItem.expiry_date}
-            onChange={(e) => setNewItem({ ...newItem, expiry_date: e.target.value })}
-          />
-          <textarea
-            placeholder="Notes"
-            value={newItem.notes}
-            onChange={(e) => setNewItem({ ...newItem, notes: e.target.value })}
-          />
-          <button type="submit">Add Item</button>
-        </form>
-      </div>
+              {ingredients.map((ingredient) => (
+                <option key={ingredient.ingredient_id} value={ingredient.ingredient_id}>
+                  {ingredient.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="Quantity"
+              value={newItem.quantity}
+              onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })}
+              required
+            />
+            <input
+              type="text"
+              placeholder="Unit"
+              value={newItem.unit}
+              readOnly
+            />
+            <input
+              type="text"
+              placeholder="Preferred Store"
+              value={newItem.preferred_store}
+              onChange={(e) => setNewItem({ ...newItem, preferred_store: e.target.value })}
+            />
+            <input
+              type="date"
+              placeholder="Expiry Date"
+              value={newItem.expiry_date}
+              onChange={(e) => setNewItem({ ...newItem, expiry_date: e.target.value })}
+            />
+            <textarea
+              placeholder="Notes"
+              value={newItem.notes}
+              onChange={(e) => setNewItem({ ...newItem, notes: e.target.value })}
+            />
+            <button type="submit">Add Item</button>
+          </form>
+        </div>
 
-      {/* Inventory Table */}
-      <div style={{ flex: 2 }}>
-        <h2>Inventory</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Ingredient</th>
-              <th>Quantity</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {inventory.map((item) => (
-              <tr key={item.ingredient_id}>
-                <td>{item.ingredient_name}</td>
-                <td>{item.quantity}</td>
-                <td>
-                  {editingItem && editingItem.ingredient_id === item.ingredient_id ? (
-                    <button onClick={saveEdit}>Save</button>
-                  ) : (
-                    <button onClick={() => handleEdit(item)}>Edit</button>
-                  )}
-                  <button onClick={() => deleteItem(item.ingredient_id)}>Delete</button>
-                </td>
+        {/* Inventory Table */}
+        <div style={{ flex: 2 }}>
+          <h2>Inventory</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Ingredient</th>
+                <th>Quantity</th>
+                <th>Unit</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {inventory.map((item) => (
+                <tr key={item.ingredient_id}>
+                  <td>{item.ingredient_name}</td>
+                  <td>{item.quantity}</td>
+                  <td>{item.unit}</td>
+                  <td>
+                    {editingItem && editingItem.ingredient_id === item.ingredient_id ? (
+                      <button onClick={saveEdit}>Save</button>
+                    ) : (
+                      <button onClick={() => handleEdit(item)}>Edit</button>
+                    )}
+                    <button onClick={() => deleteItem(item.ingredient_id)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

@@ -18,8 +18,11 @@ function Ingredients() {
   // Fetch ingredients on component mount
   useEffect(() => {
     const fetchIngredients = async () => {
+      const token = localStorage.getItem("token");
+      console.log("Token being used:", token); // Log token before using it
+
       try {
-        const response = await axios.get("http://127.0.0.1:8000/ingredients", {
+        const response = await axios.get("http://127.0.0.1:8000/ingredients/user", {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -32,8 +35,11 @@ function Ingredients() {
       }
     };
 
-    fetchIngredients(); // Call the function inside useEffect
-  }, []); // Empty dependency array ensures this runs once on mount
+    fetchIngredients();
+  }, []);
+
+console.log(localStorage.getItem("token")); // Check this in the browser console
+
 
   // Handle adding a new ingredient
   const handleAddIngredient = async (e) => {
